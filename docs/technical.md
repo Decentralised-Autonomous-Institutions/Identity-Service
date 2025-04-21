@@ -9,7 +9,7 @@ The system is designed around distinct Rust modules, interacting to provide the 
 1.  **`identity` Module (Conceptual: ID_MGR)**
     *   **Purpose**: Manages decentralized identifiers (DIDs), associated cryptographic keys (specifically the Beckn keypair), and links to the node's network identity.
     *   **Key Structs/Traits**:
-        *   `struct Identity`: Holds the DID (e.g., `did:chiti:<SubspaceId25>`), the `iroh::net::NodeId`, the Beckn-specific keypair (e.g., `ed25519_dalek::Keypair`), and potentially metadata.
+        *   `struct Identity`: Holds the DID (e.g., `did:<NamespaceId25>:<SubspaceId25>`), the `iroh::net::NodeId`, the Beckn-specific keypair (e.g., `ed25519_dalek::Keypair`), and potentially metadata.
         *   `impl Identity`: Methods for generating new identities, signing Beckn messages (`fn sign(&self, message: &[u8]) -> Signature25`), verifying signatures (`fn verify(...)`).
         *   `trait IdentityStore`: An abstraction potentially implemented using the main `Store` trait, for loading/saving identity data (mapping `SubspaceId25` to `Identity` data).
     *   **Interaction**: Uses `willow_25` types for cryptographic elements. Relies on the `store` module for persistence. Provides keys for `service_adapter` signing needs.
@@ -153,7 +153,7 @@ The system is designed around distinct Rust modules, interacting to provide the 
         ```dockerfile
         # Stage 1: Build
         FROM rust:stable AS builder
-        WORKDIR /usr/src/chiti
+        WORKDIR /usr/src/identity-model
         COPY . .
         # Install build dependencies if any (e.g., protobuf compiler)
         # RUN apt-get update && apt-get install -y protobuf-compiler
@@ -163,14 +163,14 @@ The system is designed around distinct Rust modules, interacting to provide the 
         FROM debian:bullseye-slim
         # Install runtime dependencies if any (e.g., ca-certificates)
         RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-        COPY --from=builder /usr/src/chiti/target/release/chiti-identity /usr/local/bin/chiti-identity
+        COPY --from=builder /usr/src/identity-model/target/release/identity-node /usr/local/bin/identity-node
         # Copy configuration files if needed
-        # COPY config.toml /etc/chiti/config.toml
+        # COPY config.toml /etc/identity/config.toml
 
         # Set up non-root user?
 
         EXPOSE 4433 # Default Iroh QUIC port (or configure differently)
-        CMD ["chiti-identity"]
+        CMD ["identity-node"]
         ```
 *   **Scaling & Performance**:
     *   **State**: The system is stateful (Iroh connections, Willow store). Scaling typically involves running more independent nodes rather than stateless replicas behind a load balancer.
