@@ -1,0 +1,38 @@
+# Rust / Cargo
+**/target/*
+Cargo.lock
+./target/*
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# Editor Files
+.vscode/
+.idea/
+*.iml
+*.swp
+*~
+*.bak
+*.orig
+
+# Secrets and Credentials
+*.env
+*.env.*
+!*.env.example
+credentials.*
+
+# Logs
+*.log
+logs/
+
+# Local Data (Adjust path if necessary)
+# Example for sled data directory if stored locally within the project
+# sled_data/
+
+# Test outputs
+coverage/
+*.profraw
+
+# WASM build files (if applicable)
+pkg/ 

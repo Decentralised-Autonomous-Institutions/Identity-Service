@@ -1,0 +1,63 @@
+graph TD
+    subgraph "User & Application Layer"
+        UI[User Application Roles]
+    end
+
+    %% Core Services Layer (Rust Modules)
+    subgraph "Core Services Layer"
+        direction LR
+        identity[identity<br/>(DID Mgmt, Keys)]
+        net[net<br/>(Iroh Endpoint & Sync)]
+        store[store<br/>(Willow Store Impl)]
+        access[access<br/>(Meadowcap Mgmt)]
+        AUDIT_SVC[Auditing Service]
+    end
+
+    %% Beckn Service Adapter (Generic Logic)
+    subgraph "Service Adaptation Layer"
+        service_adapter["service_adapter<br/>(Generic Beckn Logic,<br/>Validation, Registry Client,<br/>ServiceHandler Trait)"]
+    end
+
+    subgraph "Data Persistence Layer"
+        direction TB
+        AuditDB[(Audit Log DB<br/>PostgreSQL)]
+    end
+
+    subgraph "External Dependencies"
+        BECKN_REGISTRY[Beckn Registry]
+        CERT_AUTH[Certification Authority]
+    end
+
+    subgraph "Underlying Technologies"
+        IrohNet[(Iroh P2P Network<br/>QUIC Transport, NAT Traversal, Node Discovery)]
+        WillowModel[(Willow Data Model<br/>Namespaces, Subspaces, Entries, Payloads)]
+    end
+
+    %% Connections Flow
+    UI --> service_adapter
+
+    service_adapter -- Uses Identity --> identity
+    service_adapter -- Uses Networking --> net
+    service_adapter -- Stores/Retrieves State --> store
+    service_adapter -- Uses Capabilities/Auth --> access
+    service_adapter -- Sends Audit Events --> AUDIT_SVC
+
+    net -- Uses Store for Sync --> store
+    net -- Registry/Peer Comms --> BECKN_REGISTRY
+    net -- Sends Audit Events --> AUDIT_SVC
+
+    identity -- Uses Store --> store
+    identity -- Manages Identities In --> WillowModel
+    identity -- Handles Certificates With --> CERT_AUTH
+    identity -- Sends Audit Events --> AUDIT_SVC
+    CERT_AUTH -- Updates --> BECKN_REGISTRY
+
+    store -- Uses --> WillowModel
+    access -- Uses --> WillowModel
+    access -- Enforces Policies On --> store
+    access -- Sends Audit Events --> AUDIT_SVC
+
+    AUDIT_SVC -- Writes Logs --> AuditDB
+
+    net -- Builds On --> IrohNet
+    net -- Synchronizes Data Using --> WillowModel
