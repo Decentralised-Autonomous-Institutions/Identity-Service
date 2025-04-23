@@ -10,6 +10,11 @@
 ## In Progress
 
 - Project setup and infrastructure configuration
+  - Completed: Development environment setup (toolchain, base deps, README)
+  - Completed: Logging and error handling setup (tracing, thiserror)
+- Core Libraries and Dependencies
+  - Completed: Identified core dependencies and added iroh/willow/meadowcap stack to Cargo.toml
+  - Completed: Updated docs/technical.md with latest dependency versions
 - Core model design for Willow data structures
 - Research on Iroh integration patterns
 - Documentation baseline creation

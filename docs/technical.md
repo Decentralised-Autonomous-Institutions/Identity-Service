@@ -865,17 +865,18 @@ The system is designed around distinct Rust modules, interacting to provide the 
 *   **Primary Language**: Rust (Stable toolchain)
 *   **Core Crates**:
     *   `tokio`: Asynchronous runtime.
-    *   `iroh` (v0.15.0+): Networking (`iroh::net`), cryptography (`iroh::crypto`).
-    *   `willow-data-model` (v0.2.0+): Core Willow traits (`Store`, `NamespaceId`, etc.) and structures (`Path`, `Entry`).
-    *   `meadowcap` (v0.2.0+): Meadowcap capability implementation (`McCapability`, `McAuthorisationToken`).
-    *   `willow_25` (v0.1.0+): Concrete Willow/Meadowcap parameters (Ed25519, Blake3 based types like `SubspaceId25`, `Signature25`, `PayloadDigest25`).
-    *   `iroh-willow` (latest compatible): Willow General Purpose Sync (WGPS) protocol implementation over Iroh.
-    *   `willow-store-simple-sled` (v0.1.0+): Initial `Store` trait implementation using `sled`.
-    *   `sled` (v0.34+): Embedded key-value store backend.
+    *   `iroh` (v0.34.1): Networking (`iroh::net`), cryptography (`iroh::crypto`).
+    *   `willow-data-model` (v0.2.0): Core Willow traits (`Store`, `NamespaceId`, etc.) and structures (`Path`, `Entry`).
+    *   `meadowcap` (v0.2.0): Meadowcap capability implementation (`McCapability`, `McAuthorisationToken`).
+    *   `willow_25` (v0.1.0): Concrete Willow/Meadowcap parameters (Ed25519, Blake3 based types like `SubspaceId25`, `Signature25`, `PayloadDigest25`).
+    *   `iroh-willow`: Willow General Purpose Sync (WGPS) protocol implementation over Iroh (Likely part of `iroh` crate v0.34.1).
+    *   `willow-store-simple-sled` (v0.1.0): Initial `Store` trait implementation using `sled`.
+    *   `sled` (v0.34.7): Embedded key-value store backend.
     *   `serde`, `serde_json`: Data serialization/deserialization.
-    *   `sqlx` or `diesel`: For interacting with the PostgreSQL `AuditDB`.
+    *   `sqlx` (v0.8.5): For interacting with the PostgreSQL `AuditDB`.
     *   `tracing`: Logging and diagnostics framework.
     *   `thiserror`: Error handling boilerplate.
+    *   `tracing-subscriber`: Logging subscriber implementation.
 *   **External Dependencies**:
     *   PostgreSQL: For relational audit logs (`AuditDB`).
 

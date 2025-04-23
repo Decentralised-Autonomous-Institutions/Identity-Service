@@ -2,11 +2,8 @@
 
 ## 1. Project Setup and Infrastructure
 - [*] Initialize project repository
-- [ ] Set up development environment
-- [ ] Configure CI/CD pipeline
-- [ ] Define coding standards and documentation requirements
-- [ ] Set up logging and error handling frameworks
-- [ ] Create project documentation structure
+- [*] Set up development environment
+- [*] Set up logging and error handling frameworks
 
 ## 2. Core Libraries and Dependencies
 - [ ] Identify and document all required dependencies
@@ -185,3 +182,10 @@
 - [ ] Develop training workshops
 - [ ] Record tutorial videos
 - [ ] Create knowledge base
+
+## Backlog
+
+### Infrastructure
+- [ ] Configure CI/CD pipeline
+- [ ] Define coding standards and documentation requirements
+- [ ] Create project documentation structure
