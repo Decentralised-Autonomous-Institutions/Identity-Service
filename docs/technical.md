@@ -47,14 +47,65 @@ The Chiti Identity system follows a layered architecture with clear separation o
 The system is designed around distinct Rust modules, interacting to provide the overall functionality. The core components map roughly to the following proposed modules:
 
 1.  **`identity` Module (Conceptual: ID_MGR)**
-    *   **Purpose**: Manages decentralized identifiers (DIDs), associated cryptographic keys (specifically the Beckn keypair), and links to the node's network identity.
+    *   **Purpose**: Manages decentralized identifiers (DIDs), associated cryptographic keys, links to the node's network identity, and service-specific namespaces and subspaces.
     *   **Key Structs/Traits**:
         *   `struct Identity`: Holds the DID (e.g., `did:<NamespaceId25>:<SubspaceId25>`), the `iroh::net::NodeId`, the Beckn-specific keypair (e.g., `ed25519_dalek::Keypair`), and potentially metadata.
         *   `impl Identity`: Methods for generating new identities, signing Beckn messages (`fn sign(&self, message: &[u8]) -> Signature25`), verifying signatures (`fn verify(...)`).
+        *   `struct NamespaceRegistry`: Manages service-specific namespaces, allowing different services to have their own namespace definitions.
+        *   `struct NamespaceDefinition`: Defines a namespace with its configuration and cryptographic identity.
+        *   `struct SubspaceManager`: Handles the creation and management of service-specific subspaces.
         *   `trait IdentityStore`: An abstraction potentially implemented using the main `Store` trait, for loading/saving identity data (mapping `SubspaceId25` to `Identity` data).
     *   **Interaction**: Uses `willow_25` types for cryptographic elements. Relies on the `store` module for persistence. Provides keys for `service_adapter` signing needs.
     *   **Detailed Data Structures**:
     ```rust
+    /// Service types supported by the system
+    pub enum ServiceType {
+        Finance,
+        Retail,
+        Mobility,
+        Healthcare,
+        Education,
+        Custom(String),
+    }
+    
+    /// Type of namespace (communal or owned)
+    pub enum NamespaceType {
+        /// Communal namespace (uses "+" prefix in tag encoding)
+        Communal,
+        /// Owned namespace (uses "-" prefix in tag encoding)
+        Owned,
+    }
+    
+    /// Configuration for a namespace
+    pub struct NamespaceConfig {
+        /// Short name (1-15 lowercase letters/numbers, not starting with a number)
+        pub shortname: String,
+        /// Type of namespace (communal or owned)
+        pub namespace_type: NamespaceType,
+        /// Service type this namespace is for
+        pub service_type: ServiceType,
+        /// Optional description of this namespace
+        pub description: Option<String>,
+    }
+    
+    /// A complete namespace definition with its cryptographic identity
+    pub struct NamespaceDefinition {
+        /// Configuration for this namespace
+        pub config: NamespaceConfig,
+        /// The Earthstar/Willow NamespaceId25
+        pub namespace_id: NamespaceId25,
+        /// The keypair for this namespace (private key is sensitive)
+        keypair: Option<Keypair>,
+    }
+    
+    /// Manages namespaces for different services
+    pub struct NamespaceRegistry {
+        /// Registry of namespaces by service type
+        namespaces: Arc<RwLock<HashMap<ServiceType, NamespaceDefinition>>>,
+        /// Default namespace to use when none is specified
+        default_namespace: Option<ServiceType>,
+    }
+    
     pub struct Identity {
         /// The decentralized identifier in the format did:<NamespaceId25>:<SubspaceId25>
         did: String,
@@ -62,6 +113,8 @@ The system is designed around distinct Rust modules, interacting to provide the 
         beckn_keypair: ed25519_dalek::Keypair,
         /// The network identity used by Iroh for p2p communication
         node_id: Option<iroh::net::NodeId>,
+        /// Service type this identity is associated with
+        service_type: ServiceType,
         /// Additional information about this identity
         metadata: IdentityMetadata,
     }
@@ -88,13 +141,61 @@ The system is designed around distinct Rust modules, interacting to provide the 
     ```
     *   **Core Functions**:
     ```rust
+    impl NamespaceDefinition {
+        /// Create a new namespace definition with a fresh keypair
+        pub fn new(config: NamespaceConfig) -> Result<Self, IdentityError> { ... }
+        
+        /// Create a namespace definition from an existing keypair
+        pub fn from_keypair(
+            config: NamespaceConfig,
+            secret_key_bytes: &[u8],
+        ) -> Result<Self, IdentityError> { ... }
+        
+        /// Get the tag encoding of the namespace ID
+        pub fn tag_encoding(&self) -> String { ... }
+        
+        /// Sign data with this namespace's private key
+        pub fn sign(&self, data: &[u8]) -> Result<Vec<u8>, IdentityError> { ... }
+        
+        /// Verify a signature against this namespace's public key
+        pub fn verify(&self, data: &[u8], signature: &[u8]) -> Result<bool, IdentityError> { ... }
+    }
+    
+    impl NamespaceRegistry {
+        /// Create a new empty namespace registry
+        pub fn new() -> Self { ... }
+        
+        /// Register a new namespace
+        pub async fn register_namespace(
+            &self,
+            definition: NamespaceDefinition,
+        ) -> Result<(), IdentityError> { ... }
+        
+        /// Set the default namespace
+        pub async fn set_default_namespace(&self, service_type: ServiceType) { ... }
+        
+        /// Get a namespace definition by service type
+        pub async fn get_namespace(
+            &self,
+            service_type: &ServiceType,
+        ) -> Option<NamespaceDefinition> { ... }
+        
+        /// Get the default namespace
+        pub async fn get_default_namespace(&self) -> Option<NamespaceDefinition> { ... }
+    }
+    
     impl Identity {
         /// Create a new identity with a fresh keypair
-        pub fn new(name: String, role: BecknRole, domains: Vec<String>) -> Self { ... }
+        pub fn new(name: String, role: BecknRole, domains: Vec<String>, service_type: ServiceType) -> Self { ... }
         
         /// Load an identity from an existing keypair
-        pub fn from_keypair(keypair_bytes: &[u8], name: String, role: BecknRole, 
-                            domains: Vec<String>) -> Result<Self, IdentityError> { ... }
+        pub fn from_keypair(
+            keypair_bytes: &[u8], 
+            name: String, 
+            role: BecknRole,
+            domains: Vec<String>, 
+            service_type: ServiceType
+        ) -> Result<Self, IdentityError> { ... }
         
         /// Sign data using this identity's keypair
         pub fn sign(&self, data: &[u8]) -> willow_25::Signature25 { ... }
@@ -113,6 +214,9 @@ The system is designed around distinct Rust modules, interacting to provide the 
         
         /// Get the SubspaceId25 derived from this identity's public key
         pub fn subspace_id(&self) -> willow_25::SubspaceId25 { ... }
+        
+        /// Get the service type for this identity
+        pub fn service_type(&self) -> &ServiceType { ... }
     }
     ```
     *   **Storage Interface**:
@@ -127,6 +231,12 @@ The system is designed around distinct Rust modules, interacting to provide the 
         /// List all identities
         async fn list_identities(&self) -> Result<Vec<IdentitySummary>, IdentityStoreError>;
         
+        /// List identities for a specific service type
+        async fn list_identities_for_service(
+            &self,
+            service_type: &ServiceType
+        ) -> Result<Vec<IdentitySummary>, IdentityStoreError>;
+        
         /// Delete an identity
         async fn delete_identity(&self, did: &str) -> Result<(), IdentityStoreError>;
     }
@@ -136,6 +246,7 @@ The system is designed around distinct Rust modules, interacting to provide the 
         name: String,
         beckn_role: BecknRole,
         domains: Vec<String>,
+        service_type: ServiceType,
         created_at: chrono::DateTime<chrono::Utc>,
     }
     ```
@@ -273,23 +384,32 @@ The system is designed around distinct Rust modules, interacting to provide the 
     ```
 
 3.  **`store` Module (Conceptual: DATA_STORE)**
-    *   **Purpose**: Provides a concrete implementation of the `willow_data_model::Store` trait for persistent data storage.
+    *   **Purpose**: Provides a concrete implementation of the `willow_data_model::Store` trait for persistent data storage, supporting multiple service-specific namespaces.
     *   **Key Structs/Functionality**:
-        *   `struct WillowSledStore`: A wrapper around `willow_store_simple_sled::StoreSimpleSled`.
+        *   `struct WillowSledStore`: A wrapper around `willow_store_simple_sled::StoreSimpleSled` with multi-namespace support.
+        *   `struct ServiceNamespaceStore`: A namespaced view of the store for a specific service.
         *   `impl willow_data_model::Store for WillowSledStore`: Implements all methods required by the `Store` trait (`get`, `put`, `subscribe_area`, etc.), delegating calls to the underlying `sled`-based store.
-        *   Configuration: Managing the `sled::Db` instance.
+        *   Configuration: Managing the `sled::Db` instance and multiple namespace contexts.
     *   **Interaction**: Used by `net` for synchronization, by `identity` for persisting identity data, by `access` for capability checks (if needed implicitly by the store), and by `service_adapter` (via `logic`) for reading/writing transaction state.
     *   **Detailed Data Structures**:
     ```rust
     pub struct WillowSledStore {
         /// The underlying Willow store implementation
         inner: willow_store_simple_sled::StoreSimpleSled,
-        /// The namespace identifier for this store
-        namespace: willow_25::NamespaceId25,
+        /// Registry of namespaces
+        namespace_registry: Arc<identity::NamespaceRegistry>,
         /// Configuration for this store
         config: StoreConfig,
         /// Event subscribers
         subscribers: std::sync::Arc<tokio::sync::RwLock<Subscribers>>,
+    }
+
+    /// A store view for a specific service namespace
+    pub struct ServiceNamespaceStore {
+        /// Reference to the base store
+        store: Arc<WillowSledStore>,
+        /// The service type for this namespace view
+        service_type: identity::ServiceType,
     }
 
     pub struct StoreConfig {
@@ -347,11 +467,17 @@ The system is designed around distinct Rust modules, interacting to provide the 
     *   **Core Functions**:
     ```rust
     impl WillowSledStore {
-        /// Create a new WillowSledStore with the given configuration
+        /// Create a new WillowSledStore with the given configuration and namespace registry
         pub fn new(
             config: StoreConfig, 
-            namespace: Option<willow_25::NamespaceId25>
+            namespace_registry: Arc<identity::NamespaceRegistry>
         ) -> Result<Self, StoreError> { ... }
+        
+        /// Get a namespace-specific view of the store for a service
+        pub async fn for_service(
+            &self,
+            service_type: &identity::ServiceType
+        ) -> Result<ServiceNamespaceStore, StoreError> { ... }
         
         /// Get or create a subspace for an identity
         pub fn get_or_create_subspace(
@@ -382,6 +508,12 @@ The system is designed around distinct Rust modules, interacting to provide the 
         /// List all subspaces in the store
         pub fn list_subspaces(&self) -> Result<Vec<willow_25::SubspaceId25>, StoreError> { ... }
         
+        /// List subspaces for a specific service
+        pub async fn list_subspaces_for_service(
+            &self,
+            service_type: &identity::ServiceType
+        ) -> Result<Vec<willow_25::SubspaceId25>, StoreError> { ... }
+        
         /// List entries in a specific area (for debugging/exploration)
         pub async fn list_entries(
             &self,
@@ -391,7 +523,21 @@ The system is designed around distinct Rust modules, interacting to provide the 
         ) -> Result<Vec<(willow_data_model::Path, willow_data_model::Entry)>, StoreError> { ... }
     }
 
-    impl willow_data_model::Store for WillowSledStore {
+    impl ServiceNamespaceStore {
+        /// Get the namespace ID for this service store
+        pub async fn namespace_id(&self) -> Result<willow_25::NamespaceId25, StoreError> { ... }
+        
+        /// List all subspaces in this service namespace
+        pub async fn list_subspaces(&self) -> Result<Vec<willow_25::SubspaceId25>, StoreError> { ... }
+        
+        /// Build a service-specific path
+        pub fn build_path(
+            &self,
+            components: &[&str]
+        ) -> Result<willow_data_model::Path, StoreError> { ... }
+    }
+
+    impl willow_data_model::Store for ServiceNamespaceStore {
         async fn get(
             &self,
             subspace: &willow_25::SubspaceId25,
@@ -1923,3 +2069,125 @@ Future security enhancements may include:
   ```
 
 By pursuing these future directions, the Chiti Identity system can evolve to meet emerging needs while maintaining its core principles of decentralization, security, and standards compliance.
+
+## 4. Multi-Service Architecture
+
+### Service-Specific Namespace and Subspace Architecture
+
+The system is designed to support multiple domain-specific services, each with their own namespace and subspace structure. This design enables various types of application-specific data models while still leveraging the common core services layer.
+
+#### 4.1 Namespace and Subspace Design Philosophy
+
+Each service type can define its own namespace with specific characteristics:
+
+* **Namespaces**: Represents a complete collection of data for a specific service type. In Earthstar v6, namespaces are identified by cinn25519 public keys with service-specific shortnames.
+* **Namespace Types**: A namespace can be either "communal" (shared ownership with '+' prefix) or "owned" (centralized ownership with '-' prefix).
+* **Subspaces**: Within each namespace, subspaces identify separate "universes" of data typically assigned per user or entity.
+
+#### 4.2 Financial Identity Service Implementation
+
+The Financial Identity Service is implemented with the following namespace structure:
+
+* **Namespace Type**: Owned namespace (`-` prefix) since financial data requires centralized oversight, compliance mechanisms, and access control.
+* **Shortname**: "financeident" (configurable)
+* **Control Model**: Service holds the namespace private key, delegating specific write capabilities to users.
+* **Data Model Characteristics**:
+  * High sensitivity requiring robust privacy controls
+  * Regulatory compliance requirements
+  * Need for access delegation to third parties (financial advisors, institutions)
+  * Strict validation requirements
+
+**Subspace Design for Financial Service**:
+
+* **One subspace per user**: Each user gets their own dedicated subspace for financial data isolation.
+* **Shortname Pattern**: Exactly 4 characters, typically derived from user identifier.
+* **Path Structure Within Subspaces**:
+  ```
+  /profile/basic                   # Basic identity information
+  /profile/verification            # Identity verification status
+  /financial/income                # Income information
+  /financial/assets                # Asset information
+  /financial/liabilities           # Debt and liability information
+  /financial/credit                # Credit score and history
+  /financial/transactions          # Transaction history
+  /financial/analysis/risk         # Risk assessment results
+  /financial/analysis/investment   # Investment recommendations
+  /financial/analysis/budget       # Budget analysis
+  ```
+
+**Access Control for Financial Service**:
+
+* **Service-level access**: The service holds the namespace private key and delegates write capabilities to specific subspaces.
+* **User-level access**: Each user holds their subspace private key and can delegate read access to specific paths.
+* **Third-party access**: Users can grant time-limited, path-restricted read access to financial institutions or advisors.
+
+#### 4.3 Retail Service Implementation
+
+The Retail Service follows a different approach:
+
+* **Namespace Type**: Communal namespace (`+` prefix) reflecting shared marketplace responsibility.
+* **Shortname**: "retail" (configurable)
+* **Control Model**: Decentralized with each participant controlling their own subspace.
+* **Data Model Characteristics**:
+  * Product catalogs
+  * Order state
+  * Inventory management
+  * Public and private product information
+
+**Subspace Design for Retail Service**:
+
+* **Multiple subspace types**: 
+  * Merchant subspaces (catalog, inventory)
+  * Consumer subspaces (orders, preferences)
+  * Service subspaces (analytics, aggregators)
+* **Path Structure Example (Merchant)**:
+  ```
+  /catalog/categories/            # Product categories
+  /catalog/products/              # Individual products
+  /inventory/                     # Inventory levels
+  /orders/pending/                # Orders awaiting processing
+  /orders/completed/              # Fulfilled orders
+  ```
+
+### 4.4 Implementing a New Service Type
+
+To add a new service namespace to the system:
+
+1. **Define the service type**: Add a new variant to the `ServiceType` enum.
+2. **Create namespace configuration**: Configure a `NamespaceConfig` with appropriate settings.
+3. **Generate or import keypair**: Either generate a new namespace keypair or import an existing one.
+4. **Register the namespace**: Use the `NamespaceRegistry` to register the service namespace.
+5. **Define path structure**: Design the path hierarchy within subspaces based on service needs.
+6. **Implement service-specific validation**: Add validation logic specific to the service.
+7. **Configure access control policies**: Define appropriate capability delegation rules.
+
+**Example Configuration for a New Healthcare Service**:
+
+```rust
+// Define service type
+let service_type = ServiceType::Healthcare;
+
+// Create namespace configuration
+let namespace_config = NamespaceConfig {
+    shortname: "healthdata".to_string(),
+    namespace_type: NamespaceType::Owned, // Medical data requires strict access control
+    service_type: service_type.clone(),
+    description: Some("Healthcare identity and records service".to_string()),
+};
+
+// Generate namespace definition with new keypair
+let namespace_def = NamespaceDefinition::new(namespace_config)?;
+
+// Register with the namespace registry
+namespace_registry.register_namespace(namespace_def).await?;
+```
+
+### 4.5 Integration with Beckn Protocol
+
+Each service type maps to specific Beckn domains and implements corresponding logic:
+
+* **Financial Identity Service**: Implements domain-specific BecknAction handlers for financial operations.
+* **Retail Service**: Implements retail-specific BecknAction handlers.
+* **Other Services**: Each with their own domain-specific action handlers.
+
+The service adapter connects these domain-specific handlers to the appropriate namespace and subspace structure through the `ServiceNamespaceStore`.

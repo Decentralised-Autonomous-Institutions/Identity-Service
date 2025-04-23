@@ -1,21 +1,36 @@
 graph TD
     subgraph "User & Application Layer"
         UI[User Application Roles]
+        
+        %% Multiple service types
+        Finance[Financial Identity<br/>Service]
+        Retail[Retail Service]
+        Other[Other Domain<br/>Services]
     end
 
     %% Core Services Layer (Rust Modules)
     subgraph "Core Services Layer"
         direction LR
-        identity[identity<br/>(DID Mgmt, Keys)]
-        net[net<br/>(Iroh Endpoint & Sync)]
-        store[store<br/>(Willow Store Impl)]
-        access[access<br/>(Meadowcap Mgmt)]
+        identity[identity<br/>DID Mgmt, Keys]
+        subgraph "identity components"
+            direction TB
+            NamespaceRegistry["NamespaceRegistry<br/>(Service-Specific Namespaces)"]
+            IdentityStore["IdentityStore<br/>(Subspace Management)"]
+        end
+        
+        net[net<br/>Iroh Endpoint & Sync]
+        store[store<br/>Willow Store Impl]
+        access[access<br/>Meadowcap Mgmt]
         AUDIT_SVC[Auditing Service]
     end
 
     %% Beckn Service Adapter (Generic Logic)
     subgraph "Service Adaptation Layer"
         service_adapter["service_adapter<br/>(Generic Beckn Logic,<br/>Validation, Registry Client,<br/>ServiceHandler Trait)"]
+        
+        %% Service handlers for different domains
+        FinanceHandler["FinanceServiceHandler<br/>(Financial Identity<br/>Service-Specific Logic)"]
+        RetailHandler["RetailServiceHandler<br/>(Retail Service-<br/>Specific Logic)"]
     end
 
     subgraph "Data Persistence Layer"
@@ -30,11 +45,24 @@ graph TD
 
     subgraph "Underlying Technologies"
         IrohNet[(Iroh P2P Network<br/>QUIC Transport, NAT Traversal, Node Discovery)]
-        WillowModel[(Willow Data Model<br/>Namespaces, Subspaces, Entries, Payloads)]
+        WillowModel[(Willow Data Model<br/>Multiple Service Namespaces, Service-specific Subspaces,<br/>Entries, Payloads)]
     end
 
     %% Connections Flow
     UI --> service_adapter
+    Finance --> FinanceHandler
+    Retail --> RetailHandler
+    Other --> service_adapter
+
+    %% Service handler connections
+    FinanceHandler --> service_adapter
+    RetailHandler --> service_adapter
+    
+    %% Identity module and namespace registry connections
+    identity -- Contains --> NamespaceRegistry
+    identity -- Contains --> IdentityStore
+    NamespaceRegistry -- Manages Service Namespaces --> WillowModel
+    IdentityStore -- Manages Identities --> WillowModel
 
     service_adapter -- Uses Identity --> identity
     service_adapter -- Uses Networking --> net

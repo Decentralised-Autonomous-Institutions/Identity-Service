@@ -6,15 +6,17 @@
 - [*] Set up logging and error handling frameworks
 
 ## 2. Core Libraries and Dependencies
-- [ ] Identify and document all required dependencies
-- [ ] Set up build system with Cargo.toml
-- [ ] Configure Iroh and Willow dependencies
-- [ ] Set up PostgreSQL for audit logging
+- [*] Set up build system with Cargo.toml (Added base + iroh/willow/meadowcap + sqlx)
+- [*] Set up PostgreSQL for audit logging (Added sqlx, created base module)
 - [ ] Create Docker configurations for development and deployment
 
 ## 3. Data Model and Schema Design
-- [ ] Define Willow namespaces and subspace structure
+- [*] Define Willow namespaces and subspace structure
+- [*] Design multi-service namespace architecture
 - [ ] Design path hierarchy for identity and transaction data
+  - [*] Define Financial Identity Service path structure
+  - [ ] Define Retail Service path structure
+  - [ ] Define generic path patterns for extensibility
 - [ ] Define audit log database schema
 - [ ] Create Beckn protocol data models
 - [ ] Design serialization/deserialization strategies
@@ -23,6 +25,7 @@
 
 ### 4.1 Store Module
 - [ ] Implement `WillowSledStore` struct
+- [ ] Implement `ServiceNamespaceStore` for service-specific views
 - [ ] Implement Store trait methods (get, put, subscribe_area)
 - [ ] Set up configuration for sled backend
 - [ ] Create test fixtures and utilities
@@ -31,6 +34,8 @@
 
 ### 4.2 Identity Module
 - [ ] Implement Identity struct with DID management
+- [ ] Implement NamespaceRegistry for service-specific namespace management
+- [ ] Implement NamespaceDefinition for namespace configuration and cryptography
 - [ ] Create key generation and management functionality
 - [ ] Implement signing and verification methods
 - [ ] Implement IdentityStore trait
@@ -107,6 +112,16 @@
 - [ ] Implement validate_payload for retail-specific validation
 - [ ] Add retail-specific business logic
 - [ ] Create example workflows and configurations
+
+### 6.2 Financial Identity Service Handler
+- [ ] Define FinancialServiceState
+- [ ] Implement BecknTransactionState for FinancialServiceState
+- [ ] Create FinancialServiceHandler
+- [ ] Implement handle_action for financial identity-specific actions
+- [ ] Implement validate_payload for financial data validation
+- [ ] Add financial algorithm implementations
+- [ ] Create secure delegation mechanisms for financial data access
+- [ ] Implement compliance and audit features
 
 ## 7. User Interface and API
 
@@ -189,3 +204,8 @@
 - [ ] Configure CI/CD pipeline
 - [ ] Define coding standards and documentation requirements
 - [ ] Create project documentation structure
+
+### Core Libraries
+- [ ] Identify and document all required dependencies (remaining: store, specific features)
+- [ ] Configure Iroh and Willow dependencies (specific features, settings)
+- [ ] Create Docker configurations for development and deployment
